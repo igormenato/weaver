@@ -140,4 +140,4 @@ Rede 3: 100 hosts → 192.168.2.128/25   (192.168.2.128 - 192.168.2.255)
 
 ## 📄 Licença
 
-MIT License - consulte o arquivo LICENSE para detalhes.
+MIT License
