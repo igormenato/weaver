@@ -12,19 +12,39 @@ Ferramenta para calcular alocações de sub-redes IPv4 com três estratégias di
 
 **Requisitos:** Elixir >= 1.18
 
-**Executar testes:**
+**Setup do projeto:**
+
+```bash
+# Clone e prepare o ambiente
+git clone https://github.com/igormenato/weaver
+cd weaver
+mix deps.get
+mix compile
+```
+
+**Verificar instalação:**
 
 ```bash
 mix test
 ```
 
-**Executar CLI interativa:**
+## 🎮 Início Rápido
+
+**📱 Via CLI (Interativo):**
 
 ```bash
-mix weaver
+$ mix weaver
+Quantas redes?
+> 3
+Quantas máquinas na rede 1?
+> 500
+Quantas máquinas na rede 2?
+> 100
+Quantas máquinas na rede 3?
+> 100
 ```
 
-## 🔧 Uso Programático (API)
+**🔧 Via API (Programático):**
 
 ```elixir
 iex> Weaver.fixed_masks([500, 100, 100])
@@ -42,20 +62,6 @@ iex> Weaver.vlsm_sequential([500, 100, 100])
  %{machines: 100, addr: "192.168.2.0", prefix: 25},
  %{machines: 100, addr: "192.168.2.128", prefix: 25}]
 ```
-
-## 💻 Uso via CLI
-
-Execute a task interativa:
-
-```bash
-mix weaver
-```
-
-A ferramenta solicitará:
-
-1. Número total de redes
-2. Número de hosts para cada rede
-3. Apresentará três tabelas comparativas dos diferentes modos
 
 ## 📐 Algoritmos e Regras
 
