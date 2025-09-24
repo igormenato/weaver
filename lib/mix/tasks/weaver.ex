@@ -179,8 +179,8 @@ defmodule Mix.Tasks.Weaver do
     Mix.shell().info("  mix weaver [opções]          # modo não-interativo")
 
     Mix.shell().info("\nOpções:")
-    Mix.shell().info("  -h, --help                   Mostrar esta ajuda")
-    Mix.shell().info("  -H, --hosts \"500,100,100\"  Lista de hosts por rede (CSV ou espaço)")
+    Mix.shell().info("  -h, --help                  Mostrar esta ajuda")
+    Mix.shell().info("  -H, --hosts \"500,100,100\"   Lista de hosts por rede (CSV ou espaço)")
 
     Mix.shell().info(
       "  -m, --mode MODE             fixed | separated | sequential | all (padrão: all)"
