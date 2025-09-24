@@ -13,7 +13,30 @@ defmodule Mix.Tasks.Weaver do
   """
 
   @impl Mix.Task
-  def run(_args) do
+  def run(args) do
+    {opts, _rest, _invalid} =
+      OptionParser.parse(args,
+        switches: [hosts: :string, mode: :string, format: :string],
+        aliases: [H: :hosts, m: :mode, f: :format]
+      )
+
+    if Keyword.has_key?(opts, :hosts) do
+      hosts_csv = Keyword.fetch!(opts, :hosts)
+
+      machines =
+        hosts_csv
+        |> String.split([",", " "], trim: true)
+        |> Enum.map(&String.to_integer/1)
+
+      mode = Keyword.get(opts, :mode, "all")
+      format = String.downcase(Keyword.get(opts, :format, "table"))
+      run_non_interactive(machines, mode, format)
+    else
+      run_interactive()
+    end
+  end
+
+  defp run_interactive do
     Mix.shell().info("Quantas redes?")
     n = read_int!()
 
@@ -24,15 +47,46 @@ defmodule Mix.Tasks.Weaver do
         read_int!()
       end)
 
+    render_outputs(machines, "all", "table")
+  end
+
+  defp run_non_interactive(machines, mode, format) do
+    render_outputs(machines, mode, format)
+  end
+
+  defp render_outputs(machines, mode, format) do
     with {:ok, fixed} <- safe(fn -> Weaver.fixed_masks(machines) end),
          {:ok, sep} <- safe(fn -> Weaver.vlsm_separated(machines) end),
          {:ok, seq} <- safe(fn -> Weaver.vlsm_sequential(machines) end) do
-      print_table("Modo 1 - Fixo /16 e /24", fixed)
-      print_table("Modo 2 - VLSM (separado)", sep)
-      print_table("Modo 3 - VLSM (sequencial)", seq)
+      case {String.downcase(mode), String.downcase(format)} do
+        {"fixed", "json"} ->
+          print_json(fixed)
+
+        {"separated", "json"} ->
+          print_json(sep)
+
+        {"sequential", "json"} ->
+          print_json(seq)
+
+        {"all", "json"} ->
+          print_json(%{fixed: fixed, separated: sep, sequential: seq})
+
+        {"fixed", _} ->
+          print_table("Modo 1 - Fixo /16 e /24", fixed)
+
+        {"separated", _} ->
+          print_table("Modo 2 - VLSM (separado)", sep)
+
+        {"sequential", _} ->
+          print_table("Modo 3 - VLSM (sequencial)", seq)
+
+        {"all", _} ->
+          print_table("Modo 1 - Fixo /16 e /24", fixed)
+          print_table("Modo 2 - VLSM (separado)", sep)
+          print_table("Modo 3 - VLSM (sequencial)", seq)
+      end
     else
-      {:error, msg} ->
-        Mix.shell().error("Erro: #{msg}")
+      {:error, msg} -> Mix.shell().error("Erro: #{msg}")
     end
   end
 
@@ -97,12 +151,26 @@ defmodule Mix.Tasks.Weaver do
     end)
   end
 
-  defp safe(fun) when is_function(fun, 0) do
-    try do
-      {:ok, fun.()}
-    rescue
-      e in [ArgumentError] -> {:error, e.message}
-      e -> {:error, Exception.message(e)}
+  defp print_json(data) do
+    json =
+      case data do
+        list when is_list(list) ->
+          Enum.map(list, fn r -> %{machines: r.machines, addr: r.addr, prefix: r.prefix} end)
+
+        map when is_map(map) ->
+          map
+      end
+
+    case Jason.encode(json) do
+      {:ok, s} -> IO.puts(s)
+      {:error, e} -> Mix.shell().error("Erro ao gerar JSON: #{Exception.message(e)}")
     end
+  end
+
+  defp safe(fun) when is_function(fun, 0) do
+    {:ok, fun.()}
+  rescue
+    e in [ArgumentError] -> {:error, e.message}
+    e -> {:error, Exception.message(e)}
   end
 end

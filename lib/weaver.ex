@@ -10,6 +10,32 @@ defmodule Weaver do
 
   Todas as funções recebem uma lista de inteiros (hosts por rede) e retornam uma lista
   de mapas na ordem original da entrada: `%{machines, addr, prefix}`.
+
+  Exemplos (doctests):
+
+      iex> Weaver.fixed_masks([500, 100, 100])
+      ...> |> Enum.map(&{&1.machines, &1.addr, &1.prefix})
+      [
+        {500, "172.16.0.0", 16},
+        {100, "192.168.0.0", 24},
+        {100, "192.168.1.0", 24}
+      ]
+
+      iex> Weaver.vlsm_separated([500, 100, 100])
+      ...> |> Enum.map(&{&1.machines, &1.addr, &1.prefix})
+      [
+        {500, "192.168.0.0", 23},
+        {100, "192.168.2.0", 25},
+        {100, "192.168.3.0", 25}
+      ]
+
+      iex> Weaver.vlsm_sequential([500, 100, 100])
+      ...> |> Enum.map(&{&1.machines, &1.addr, &1.prefix})
+      [
+        {500, "192.168.0.0", 23},
+        {100, "192.168.2.0", 25},
+        {100, "192.168.2.128", 25}
+      ]
   """
 
   @type machines :: non_neg_integer()
@@ -32,20 +58,18 @@ defmodule Weaver do
           not (is_integer(m) and m > 0) ->
             raise ArgumentError, "Quantidade de máquinas inválida no índice #{idx}: #{inspect(m)}"
 
-          m > 254 ->
-            if i16 > 31 do
-              raise ArgumentError,
-                    "Excedeu a capacidade de /16 (172.16.0.0/16 .. 172.31.0.0/16)"
-            end
+          m > 254 and i16 > 31 ->
+            raise ArgumentError,
+                  "Excedeu a capacidade de /16 (172.16.0.0/16 .. 172.31.0.0/16)"
 
+          m > 254 ->
             addr = ip_to_string({172, i16, 0, 0})
             {[%{machines: m, addr: addr, prefix: 16} | acc], i16 + 1, i24}
 
-          true ->
-            if i24 > 255 do
-              raise ArgumentError, "Excedeu a capacidade de /24 em 192.168.0.0/16"
-            end
+          i24 > 255 ->
+            raise ArgumentError, "Excedeu a capacidade de /24 em 192.168.0.0/16"
 
+          true ->
             addr = ip_to_string({192, 168, i24, 0})
             {[%{machines: m, addr: addr, prefix: 24} | acc], i16, i24 + 1}
         end
@@ -85,6 +109,8 @@ defmodule Weaver do
   # =========================
   # Implementação VLSM
   # =========================
+
+  defp do_vlsm([], _mode), do: []
 
   defp do_vlsm(machines_list, mode) do
     base_int = ip_tuple_to_int({192, 168, 0, 0})
@@ -187,7 +213,7 @@ defmodule Weaver do
   @doc false
   @spec align_up(non_neg_integer(), pos_integer()) :: non_neg_integer()
   def align_up(n, block_size) do
-    rem = rem(n, block_size)
-    if rem == 0, do: n, else: n + (block_size - rem)
+    remainder = rem(n, block_size)
+    if remainder == 0, do: n, else: n + (block_size - remainder)
   end
 end
