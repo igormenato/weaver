@@ -16,23 +16,29 @@ defmodule Mix.Tasks.Weaver do
   def run(args) do
     {opts, _rest, _invalid} =
       OptionParser.parse(args,
-        switches: [hosts: :string, mode: :string, format: :string],
-        aliases: [H: :hosts, m: :mode, f: :format]
+        switches: [hosts: :string, mode: :string, format: :string, help: :boolean],
+        aliases: [H: :hosts, m: :mode, f: :format, h: :help]
       )
 
-    if Keyword.has_key?(opts, :hosts) do
-      hosts_csv = Keyword.fetch!(opts, :hosts)
+    cond do
+      Keyword.get(opts, :help, false) ->
+        print_usage()
+        :ok
 
-      machines =
-        hosts_csv
-        |> String.split([",", " "], trim: true)
-        |> Enum.map(&String.to_integer/1)
+      Keyword.has_key?(opts, :hosts) ->
+        hosts_csv = Keyword.fetch!(opts, :hosts)
 
-      mode = Keyword.get(opts, :mode, "all")
-      format = String.downcase(Keyword.get(opts, :format, "table"))
-      run_non_interactive(machines, mode, format)
-    else
-      run_interactive()
+        machines =
+          hosts_csv
+          |> String.split([",", " "], trim: true)
+          |> Enum.map(&String.to_integer/1)
+
+        mode = Keyword.get(opts, :mode, "all")
+        format = String.downcase(Keyword.get(opts, :format, "table"))
+        run_non_interactive(machines, mode, format)
+
+      true ->
+        run_interactive()
     end
   end
 
@@ -165,6 +171,26 @@ defmodule Mix.Tasks.Weaver do
       {:ok, s} -> IO.puts(s)
       {:error, e} -> Mix.shell().error("Erro ao gerar JSON: #{Exception.message(e)}")
     end
+  end
+
+  defp print_usage do
+    Mix.shell().info("\nUso:")
+    Mix.shell().info("  mix weaver                   # modo interativo")
+    Mix.shell().info("  mix weaver [opções]          # modo não-interativo")
+
+    Mix.shell().info("\nOpções:")
+    Mix.shell().info("  -h, --help                   Mostrar esta ajuda")
+    Mix.shell().info("  -H, --hosts \"500,100,100\"  Lista de hosts por rede (CSV ou espaço)")
+
+    Mix.shell().info(
+      "  -m, --mode MODE             fixed | separated | sequential | all (padrão: all)"
+    )
+
+    Mix.shell().info("  -f, --format FORMAT         table | json (padrão: table)")
+
+    Mix.shell().info("\nExemplos:")
+    Mix.shell().info("  mix weaver -H 500,100,100 -m all -f table")
+    Mix.shell().info("  mix weaver -H \"500 100 100\" -m sequential --format json")
   end
 
   defp safe(fun) when is_function(fun, 0) do
