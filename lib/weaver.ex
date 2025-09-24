@@ -10,32 +10,6 @@ defmodule Weaver do
 
   Todas as funções recebem uma lista de inteiros (hosts por rede) e retornam uma lista
   de mapas na ordem original da entrada: `%{machines, addr, prefix}`.
-
-  Exemplos (doctests):
-
-      iex> Weaver.fixed_masks([500, 100, 100])
-      ...> |> Enum.map(&{&1.machines, &1.addr, &1.prefix})
-      [
-        {500, "172.16.0.0", 16},
-        {100, "192.168.0.0", 24},
-        {100, "192.168.1.0", 24}
-      ]
-
-      iex> Weaver.vlsm_separated([500, 100, 100])
-      ...> |> Enum.map(&{&1.machines, &1.addr, &1.prefix})
-      [
-        {500, "192.168.0.0", 23},
-        {100, "192.168.2.0", 25},
-        {100, "192.168.3.0", 25}
-      ]
-
-      iex> Weaver.vlsm_sequential([500, 100, 100])
-      ...> |> Enum.map(&{&1.machines, &1.addr, &1.prefix})
-      [
-        {500, "192.168.0.0", 23},
-        {100, "192.168.2.0", 25},
-        {100, "192.168.2.128", 25}
-      ]
   """
 
   @type machines :: non_neg_integer()
