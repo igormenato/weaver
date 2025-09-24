@@ -44,6 +44,18 @@ Quantas máquinas na rede 3?
 > 100
 ```
 
+**⚙️ Via CLI (Não-interativo):**
+
+```bash
+# Executa só um modo, saída em tabela (padrão)
+mix weaver --hosts "500,100,100" --mode fixed
+mix weaver -H "500 100 100" -m separated
+mix weaver -H 500,100,100 -m sequential
+
+# Saída JSON (para automatização)
+mix weaver -H 500,100,100 --mode all --format json
+```
+
 **🔧 Via API (Programático):**
 
 ```elixir
@@ -141,3 +153,21 @@ Rede 3: 100 hosts → 192.168.2.128/25   (192.168.2.128 - 192.168.2.255)
 ## 📄 Licença
 
 MIT License
+
+---
+
+## 🔍 Ferramentas de Qualidade de Código
+
+- Credo (lint):
+
+```bash
+mix deps.get
+mix credo --strict
+```
+
+- Dialyzer (tipagem estática):
+
+```bash
+mix deps.get
+mix dialyzer
+```
