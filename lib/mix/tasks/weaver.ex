@@ -172,7 +172,7 @@ defmodule Mix.Tasks.Weaver do
       values
       |> Enum.zip(widths)
       |> Enum.map(fn {value, width} ->
-  inner_width = max(width - 2, 0)
+        inner_width = max(width - 2, 0)
         len = String.length(value)
         padding = max(inner_width - len, 0)
         left = div(padding, 2)
