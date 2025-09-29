@@ -172,11 +172,7 @@ defmodule Mix.Tasks.Weaver do
       values
       |> Enum.zip(widths)
       |> Enum.map(fn {value, width} ->
-<<<<<<< HEAD
         inner_width = max(width - 2, 0)
-=======
-  inner_width = max(width - 2, 0)
->>>>>>> d4d4bd9 (Enhance table output formatting)
         len = String.length(value)
         padding = max(inner_width - len, 0)
         left = div(padding, 2)
