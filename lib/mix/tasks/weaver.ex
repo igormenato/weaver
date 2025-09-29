@@ -126,6 +126,7 @@ defmodule Mix.Tasks.Weaver do
     # Calcular larguras dinâmicas das colunas
     machines_strs = Enum.map(rows, &Integer.to_string(&1.machines))
     addr_strs = Enum.map(rows, & &1.addr)
+    prefix_strs = Enum.map(rows, &"/#{&1.prefix}")
 
     width1 =
       max(String.length("Máquinas"), Enum.max([0 | Enum.map(machines_strs, &String.length/1)])) +
@@ -137,24 +138,50 @@ defmodule Mix.Tasks.Weaver do
         Enum.max([0 | Enum.map(addr_strs, &String.length/1)])
       ) + 2
 
-    header =
-      String.pad_trailing("Máquinas", width1) <>
-        String.pad_trailing("Endereço de Rede", width2) <>
-        "Máscara"
+    width3 =
+      max(String.length("Máscara"), Enum.max([0 | Enum.map(prefix_strs, &String.length/1)])) + 2
 
-    Mix.shell().info(header)
+    widths = [width1, width2, width3]
+    header_cells = ["Máquinas", "Endereço de Rede", "Máscara"]
+
+    top_border = border_line(widths, {"┌", "┬", "┐"})
+    mid_border = border_line(widths, {"├", "┼", "┤"})
+    bottom_border = border_line(widths, {"└", "┴", "┘"})
+
+    Mix.shell().info(top_border)
+    Mix.shell().info(row_line(header_cells, widths))
+    Mix.shell().info(mid_border)
 
     Enum.each(rows, fn r ->
-      machines = Integer.to_string(r.machines)
-      addr = r.addr
-
-      line =
-        String.pad_trailing(machines, width1) <>
-          String.pad_trailing(addr, width2) <>
-          "/#{r.prefix}"
-
-      Mix.shell().info(line)
+      row = [Integer.to_string(r.machines), r.addr, "/#{r.prefix}"]
+      Mix.shell().info(row_line(row, widths))
     end)
+
+    Mix.shell().info(bottom_border)
+  end
+
+  defp border_line(widths, {left, mid, right}) do
+    widths
+    |> Enum.map(&String.duplicate("─", &1))
+    |> Enum.join(mid)
+    |> then(&"#{left}#{&1}#{right}")
+  end
+
+  defp row_line(values, widths) do
+    cells =
+      values
+      |> Enum.zip(widths)
+      |> Enum.map(fn {value, width} ->
+  inner_width = max(width - 2, 0)
+        len = String.length(value)
+        padding = max(inner_width - len, 0)
+        left = div(padding, 2)
+        right = padding - left
+        " " <> String.duplicate(" ", left) <> value <> String.duplicate(" ", right) <> " "
+      end)
+      |> Enum.join("│")
+
+    "│#{cells}│"
   end
 
   defp print_json(data) do
