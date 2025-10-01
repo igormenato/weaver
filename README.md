@@ -153,21 +153,3 @@ Rede 3: 100 hosts → 192.168.2.128/25   (192.168.2.128 - 192.168.2.255)
 ## 📄 Licença
 
 MIT License
-
----
-
-## 🔍 Ferramentas de Qualidade de Código
-
-- Credo (lint):
-
-```bash
-mix deps.get
-mix credo --strict
-```
-
-- Dialyzer (tipagem estática):
-
-```bash
-mix deps.get
-mix dialyzer
-```
