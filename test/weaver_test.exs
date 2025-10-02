@@ -1,14 +1,15 @@
 defmodule WeaverTest do
   use ExUnit.Case
+  import Bitwise
   doctest Weaver
 
   # helpers
   defp ip_to_int(addr) do
     [a, b, c, d] = addr |> String.split(".") |> Enum.map(&String.to_integer/1)
-    ((a * 256 + b) * 256 + c) * 256 + d
+    Weaver.ip_tuple_to_int({a, b, c, d})
   end
 
-  defp block_size(prefix), do: :erlang.bsl(1, 32 - prefix)
+  defp block_size(prefix), do: 1 <<< (32 - prefix)
 
   describe "fixed_masks/1 (exemplos)" do
     test "[500, 100, 100]" do

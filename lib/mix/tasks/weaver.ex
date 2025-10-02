@@ -168,17 +168,13 @@ defmodule Mix.Tasks.Weaver do
   end
 
   defp border_line(widths, {left, mid, right}) do
-    widths
-    |> Enum.map(&String.duplicate("─", &1))
-    |> Enum.join(mid)
-    |> then(&"#{left}#{&1}#{right}")
+    inner = Enum.map_join(widths, mid, &String.duplicate("─", &1))
+    "#{left}#{inner}#{right}"
   end
 
   defp row_line(values, widths) do
     cells =
-      values
-      |> Enum.zip(widths)
-      |> Enum.map(fn {value, width} ->
+      Enum.map_join(Enum.zip(values, widths), "│", fn {value, width} ->
         inner_width = max(width - 2, 0)
         len = String.length(value)
         padding = max(inner_width - len, 0)
@@ -186,7 +182,6 @@ defmodule Mix.Tasks.Weaver do
         right = padding - left
         " " <> String.duplicate(" ", left) <> value <> String.duplicate(" ", right) <> " "
       end)
-      |> Enum.join("│")
 
     "│#{cells}│"
   end

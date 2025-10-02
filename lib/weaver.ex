@@ -182,7 +182,7 @@ defmodule Weaver do
   @doc false
   @spec ip_tuple_to_int({0..255, 0..255, 0..255, 0..255}) :: non_neg_integer()
   def ip_tuple_to_int({a, b, c, d}) do
-    (a <<< 24) + (b <<< 16) + (c <<< 8) + d
+    a <<< 24 ||| b <<< 16 ||| c <<< 8 ||| d
   end
 
   @doc false
