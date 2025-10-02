@@ -9,11 +9,11 @@ defmodule Weaver do
   3) VLSM com endereços sequenciais (empacotado)
 
   Todas as funções recebem uma lista de inteiros (hosts por rede) e retornam uma lista
-  de mapas na ordem original da entrada: `%{machines, addr, prefix}`.
+  de mapas na ordem original da entrada: `%{machines, addr, prefix, mask}`.
   """
 
   @type machines :: non_neg_integer()
-  @type allocation :: %{machines: machines(), addr: String.t(), prefix: 0..32}
+  @type allocation :: %{machines: machines(), addr: String.t(), prefix: 0..32, mask: String.t()}
 
   @doc """
   Modo 1: Máscaras fixas /16 (se máquinas > 254) e /24 (caso contrário).
@@ -38,14 +38,16 @@ defmodule Weaver do
 
           m > 254 ->
             addr = ip_to_string({172, i16, 0, 0})
-            {[%{machines: m, addr: addr, prefix: 16} | acc], i16 + 1, i24}
+            mask = prefix_to_mask(16)
+            {[%{machines: m, addr: addr, prefix: 16, mask: mask} | acc], i16 + 1, i24}
 
           i24 > 255 ->
             raise ArgumentError, "Excedeu a capacidade de /24 em 192.168.0.0/16"
 
           true ->
             addr = ip_to_string({192, 168, i24, 0})
-            {[%{machines: m, addr: addr, prefix: 24} | acc], i16, i24 + 1}
+            mask = prefix_to_mask(24)
+            {[%{machines: m, addr: addr, prefix: 24, mask: mask} | acc], i16, i24 + 1}
         end
       end)
 
@@ -133,7 +135,16 @@ defmodule Weaver do
               align_up(net + block_size, 1 <<< 8)
           end
 
-        acc = Map.put(acc, e.idx, %{machines: e.machines, addr: int_to_ip(net), prefix: e.prefix})
+        mask = prefix_to_mask(e.prefix)
+
+        acc =
+          Map.put(acc, e.idx, %{
+            machines: e.machines,
+            addr: int_to_ip(net),
+            prefix: e.prefix,
+            mask: mask
+          })
+
         {acc, next_cursor}
       end)
 
@@ -189,5 +200,12 @@ defmodule Weaver do
   def align_up(n, block_size) do
     remainder = rem(n, block_size)
     if remainder == 0, do: n, else: n + (block_size - remainder)
+  end
+
+  @doc false
+  @spec prefix_to_mask(0..32) :: String.t()
+  def prefix_to_mask(prefix) when prefix >= 0 and prefix <= 32 do
+    mask_int = 0xFFFFFFFF <<< (32 - prefix) &&& 0xFFFFFFFF
+    int_to_ip(mask_int)
   end
 end

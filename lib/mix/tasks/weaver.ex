@@ -127,6 +127,7 @@ defmodule Mix.Tasks.Weaver do
     machines_strs = Enum.map(rows, &Integer.to_string(&1.machines))
     addr_strs = Enum.map(rows, & &1.addr)
     prefix_strs = Enum.map(rows, &"/#{&1.prefix}")
+    mask_strs = Enum.map(rows, & &1.mask)
 
     width1 =
       max(String.length("Máquinas"), Enum.max([0 | Enum.map(machines_strs, &String.length/1)])) +
@@ -139,10 +140,16 @@ defmodule Mix.Tasks.Weaver do
       ) + 2
 
     width3 =
-      max(String.length("Máscara"), Enum.max([0 | Enum.map(prefix_strs, &String.length/1)])) + 2
+      max(String.length("Prefixo"), Enum.max([0 | Enum.map(prefix_strs, &String.length/1)])) + 2
 
-    widths = [width1, width2, width3]
-    header_cells = ["Máquinas", "Endereço de Rede", "Máscara"]
+    width4 =
+      max(
+        String.length("Máscara de Sub-rede"),
+        Enum.max([0 | Enum.map(mask_strs, &String.length/1)])
+      ) + 2
+
+    widths = [width1, width2, width3, width4]
+    header_cells = ["Máquinas", "Endereço de Rede", "Prefixo", "Máscara de Sub-rede"]
 
     top_border = border_line(widths, {"┌", "┬", "┐"})
     mid_border = border_line(widths, {"├", "┼", "┤"})
@@ -153,7 +160,7 @@ defmodule Mix.Tasks.Weaver do
     Mix.shell().info(mid_border)
 
     Enum.each(rows, fn r ->
-      row = [Integer.to_string(r.machines), r.addr, "/#{r.prefix}"]
+      row = [Integer.to_string(r.machines), r.addr, "/#{r.prefix}", r.mask]
       Mix.shell().info(row_line(row, widths))
     end)
 
@@ -188,7 +195,9 @@ defmodule Mix.Tasks.Weaver do
     json =
       case data do
         list when is_list(list) ->
-          Enum.map(list, fn r -> %{machines: r.machines, addr: r.addr, prefix: r.prefix} end)
+          Enum.map(list, fn r ->
+            %{machines: r.machines, addr: r.addr, prefix: r.prefix, mask: r.mask}
+          end)
 
         map when is_map(map) ->
           map

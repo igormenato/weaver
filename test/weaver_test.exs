@@ -16,9 +16,9 @@ defmodule WeaverTest do
       out = Weaver.fixed_masks(input)
 
       assert out == [
-               %{machines: 500, addr: "172.16.0.0", prefix: 16},
-               %{machines: 100, addr: "192.168.0.0", prefix: 24},
-               %{machines: 100, addr: "192.168.1.0", prefix: 24}
+               %{machines: 500, addr: "172.16.0.0", prefix: 16, mask: "255.255.0.0"},
+               %{machines: 100, addr: "192.168.0.0", prefix: 24, mask: "255.255.255.0"},
+               %{machines: 100, addr: "192.168.1.0", prefix: 24, mask: "255.255.255.0"}
              ]
     end
   end
@@ -29,9 +29,9 @@ defmodule WeaverTest do
       out = Weaver.vlsm_separated(input)
 
       assert out == [
-               %{machines: 500, addr: "192.168.0.0", prefix: 23},
-               %{machines: 100, addr: "192.168.2.0", prefix: 25},
-               %{machines: 100, addr: "192.168.3.0", prefix: 25}
+               %{machines: 500, addr: "192.168.0.0", prefix: 23, mask: "255.255.254.0"},
+               %{machines: 100, addr: "192.168.2.0", prefix: 25, mask: "255.255.255.128"},
+               %{machines: 100, addr: "192.168.3.0", prefix: 25, mask: "255.255.255.128"}
              ]
     end
   end
@@ -42,9 +42,9 @@ defmodule WeaverTest do
       out = Weaver.vlsm_sequential(input)
 
       assert out == [
-               %{machines: 500, addr: "192.168.0.0", prefix: 23},
-               %{machines: 100, addr: "192.168.2.0", prefix: 25},
-               %{machines: 100, addr: "192.168.2.128", prefix: 25}
+               %{machines: 500, addr: "192.168.0.0", prefix: 23, mask: "255.255.254.0"},
+               %{machines: 100, addr: "192.168.2.0", prefix: 25, mask: "255.255.255.128"},
+               %{machines: 100, addr: "192.168.2.128", prefix: 25, mask: "255.255.255.128"}
              ]
     end
   end
