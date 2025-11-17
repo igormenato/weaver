@@ -43,8 +43,6 @@ defmodule Mix.Tasks.Weaver do
         format: :string,
         help: :boolean,
         serve: :boolean,
-        # http: :boolean,
-        # http_port: :integer,
         socket_host: :string,
         socket_port: :integer
       ],
@@ -55,22 +53,15 @@ defmodule Mix.Tasks.Weaver do
   defp build_serve_opts(opts) do
     host = Keyword.get(opts, :socket_host, nil)
     port = Keyword.get(opts, :socket_port, nil)
-    # http = Keyword.get(opts, :http, nil)
-    # http_port = Keyword.get(opts, :http_port, nil)
 
     serve_opts = []
     serve_opts = if host, do: Keyword.put(serve_opts, :host, host), else: serve_opts
     serve_opts = if port, do: Keyword.put(serve_opts, :port, port), else: serve_opts
-    # serve_opts = if http, do: Keyword.put(serve_opts, :http, http), else: serve_opts
-
-    # serve_opts =
-    #   if http_port, do: Keyword.put(serve_opts, :http_port, http_port), else: serve_opts
 
     serve_opts
   end
 
   defp start_dev_server(serve_opts) do
-    # Ensure task supervisor exists for server children
     start_task_supervisor_if_needed()
 
     case Listener.start_link(serve_opts) do
@@ -79,9 +70,6 @@ defmodule Mix.Tasks.Weaver do
           "Weaver socket server started on #{Keyword.get(serve_opts, :host, "127.0.0.1")}:#{Keyword.get(serve_opts, :port, 4040)}"
         )
 
-        # No HTTP wrapper: only socket server starts
-
-        # block to keep the server running until SIGINT
         receive do
           :stop -> :ok
         end
@@ -90,8 +78,6 @@ defmodule Mix.Tasks.Weaver do
         Mix.shell().error("Failed to start server: #{inspect(reason)}")
     end
   end
-
-  # removed HTTP wrapper helper
 
   defp start_task_supervisor_if_needed do
     if Process.whereis(Weaver.Socket.TaskSupervisor) == nil do

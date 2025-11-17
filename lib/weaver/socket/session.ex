@@ -7,7 +7,6 @@ defmodule Weaver.Socket.Session do
 
   @spec serve(port() | :gen_tcp.socket()) :: :ok
   def serve(socket) do
-    # this process should be assigned the socket ownership by the acceptor
     opts = session_opts()
 
     case :gen_tcp.recv(socket, 0, opts.timeout) do
@@ -30,7 +29,6 @@ defmodule Weaver.Socket.Session do
   end
 
   defp handle_request(socket, data, max_hosts, max_host_value) do
-    # Trim newline and whitespace
     json = String.trim(data)
 
     with {:ok, request} <- decode(json),

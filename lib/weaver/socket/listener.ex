@@ -58,7 +58,6 @@ defmodule Weaver.Socket.Listener do
     case :gen_tcp.listen(port, listen_opts) do
       {:ok, lsock} ->
         Logger.info("Weaver.Socket.Listener started on #{host}:#{port}")
-        # spawn accept loop in a separate process to keep this GenServer responsive
         {:ok, accept_pid} = Task.start(fn -> accept_loop(lsock) end)
         {:ok, %{listen: lsock, accept_pid: accept_pid}}
 
@@ -83,7 +82,6 @@ defmodule Weaver.Socket.Listener do
     :ok
   end
 
-  # Accept loop
   defp accept_loop(listen_socket) do
     case :gen_tcp.accept(listen_socket) do
       {:ok, socket} ->

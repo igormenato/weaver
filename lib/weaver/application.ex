@@ -12,7 +12,4 @@ defmodule Weaver.Application do
     children = children
     Supervisor.start_link(children, opts)
   end
-
-  # HTTP wrapper removed; no optional children are added.
-    # No optional HTTP child anymore (Cowboy removed)
 end
