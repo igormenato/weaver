@@ -186,3 +186,34 @@ Rede 3: 100 hosts → 192.168.2.128/25   (192.168.2.128 - 192.168.2.255)
 ## 📄 Licença
 
 MIT License
+
+## 🧪 TCP JSON Server
+
+Weaver can run as a TCP server which accepts newline-delimited JSON requests and returns newline-delimited JSON responses.
+
+Typical request payload (newline-delimited JSON):
+
+```json
+{"hosts": [500, 100, 100], "mode": "all"}\n
+```
+
+Typical responses:
+
+- Success: `{"status":"ok","data": {...}}\n`
+- Error: `{"status":"error","message":"..."}\n`
+
+Start as server (dev):
+
+```bash
+mix weaver --serve
+```
+
+<!-- HTTP wrapper removed; use TCP socket or CLI client -->
+
+Call a running server with the CLI client (example: using port 4040):
+
+```bash
+mix weaver --hosts "500,100,100" --socket-host 127.0.0.1 --socket-port 4040 --format json
+```
+
+<!-- Python client removed -->

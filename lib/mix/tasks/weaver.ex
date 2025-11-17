@@ -1,5 +1,6 @@
 defmodule Mix.Tasks.Weaver do
   use Mix.Task
+  alias Weaver.Socket.{Client, Listener}
 
   @shortdoc "Calcular endereçamento IPv4 (3 modos)"
 
@@ -14,31 +15,147 @@ defmodule Mix.Tasks.Weaver do
 
   @impl Mix.Task
   def run(args) do
-    {opts, _rest, _invalid} =
-      OptionParser.parse(args,
-        switches: [hosts: :string, mode: :string, format: :string, help: :boolean],
-        aliases: [H: :hosts, m: :mode, f: :format, h: :help]
-      )
+    {opts, _rest, _invalid} = parse_args(args)
 
     cond do
       Keyword.get(opts, :help, false) ->
         print_usage()
         :ok
 
+      Keyword.get(opts, :serve, false) ->
+        serve_opts = build_serve_opts(opts)
+        start_dev_server(serve_opts)
+
       Keyword.has_key?(opts, :hosts) ->
         hosts_csv = Keyword.fetch!(opts, :hosts)
-
-        machines =
-          hosts_csv
-          |> String.split([",", " "], trim: true)
-          |> Enum.map(&String.to_integer/1)
-
-        mode = Keyword.get(opts, :mode, "all")
-        format = String.downcase(Keyword.get(opts, :format, "table"))
-        run_non_interactive(machines, mode, format)
+        handle_hosts(opts, hosts_csv)
 
       true ->
         run_interactive()
+    end
+  end
+
+  defp parse_args(args) do
+    OptionParser.parse(args,
+      switches: [
+        hosts: :string,
+        mode: :string,
+        format: :string,
+        help: :boolean,
+        serve: :boolean,
+        # http: :boolean,
+        # http_port: :integer,
+        socket_host: :string,
+        socket_port: :integer
+      ],
+      aliases: [H: :hosts, m: :mode, f: :format, h: :help]
+    )
+  end
+
+  defp build_serve_opts(opts) do
+    host = Keyword.get(opts, :socket_host, nil)
+    port = Keyword.get(opts, :socket_port, nil)
+    # http = Keyword.get(opts, :http, nil)
+    # http_port = Keyword.get(opts, :http_port, nil)
+
+    serve_opts = []
+    serve_opts = if host, do: Keyword.put(serve_opts, :host, host), else: serve_opts
+    serve_opts = if port, do: Keyword.put(serve_opts, :port, port), else: serve_opts
+    # serve_opts = if http, do: Keyword.put(serve_opts, :http, http), else: serve_opts
+
+    # serve_opts =
+    #   if http_port, do: Keyword.put(serve_opts, :http_port, http_port), else: serve_opts
+
+    serve_opts
+  end
+
+  defp start_dev_server(serve_opts) do
+    # Ensure task supervisor exists for server children
+    start_task_supervisor_if_needed()
+
+    case Listener.start_link(serve_opts) do
+      {:ok, _pid} ->
+        Mix.shell().info(
+          "Weaver socket server started on #{Keyword.get(serve_opts, :host, "127.0.0.1")}:#{Keyword.get(serve_opts, :port, 4040)}"
+        )
+
+        # No HTTP wrapper: only socket server starts
+
+        # block to keep the server running until SIGINT
+        receive do
+          :stop -> :ok
+        end
+
+      {:error, reason} ->
+        Mix.shell().error("Failed to start server: #{inspect(reason)}")
+    end
+  end
+
+  # removed HTTP wrapper helper
+
+  defp start_task_supervisor_if_needed do
+    if Process.whereis(Weaver.Socket.TaskSupervisor) == nil do
+      case Task.Supervisor.start_link(name: Weaver.Socket.TaskSupervisor) do
+        {:ok, _} ->
+          :ok
+
+        {:error, {:already_started, _}} ->
+          :ok
+
+        {:error, reason} ->
+          Mix.shell().error("Failed to start TaskSupervisor: #{inspect(reason)}")
+      end
+    end
+  end
+
+  defp handle_hosts(opts, hosts_csv) do
+    machines =
+      hosts_csv
+      |> String.split([",", " "], trim: true)
+      |> Enum.map(&String.to_integer/1)
+
+    mode = Keyword.get(opts, :mode, "all")
+    format = String.downcase(Keyword.get(opts, :format, "table"))
+
+    socket_host = Keyword.get(opts, :socket_host)
+    socket_port = Keyword.get(opts, :socket_port)
+
+    if socket_host || socket_port do
+      host = socket_host || "127.0.0.1"
+      port = socket_port || 4040
+      run_client_request(host, port, machines, mode, format)
+    else
+      run_non_interactive(machines, mode, format)
+    end
+  end
+
+  defp run_client_request(host, port, machines, mode, format) do
+    request = %{"hosts" => machines, "mode" => mode}
+
+    case Client.call(host, port, request) do
+      {:ok, %{"status" => "ok", "data" => data}} ->
+        handle_server_response(data, mode, format)
+
+      {:error, {code, msg}} ->
+        Mix.shell().error("Server error (#{code}): #{msg}")
+
+      {:error, reason} ->
+        Mix.shell().error("Error connecting to server: #{inspect(reason)}")
+    end
+  end
+
+  defp handle_server_response(data, mode, format) do
+    format_down = String.downcase(format)
+    mode_down = String.downcase(mode)
+
+    if format_down == "json" do
+      print_json(data)
+    else
+      cond do
+        mode_down == "all" and is_map(data) -> render_outputs_map_mode(data, format)
+        is_list(data) -> render_outputs_list_mode(data, mode, format)
+        true -> Mix.shell().error("Server sent unsupported data format")
+      end
     end
   end
 
@@ -119,8 +236,32 @@ defmodule Mix.Tasks.Weaver do
     end
   end
 
+  defp render_outputs_list_mode(list, mode, format) do
+    case {String.downcase(mode), String.downcase(format)} do
+      {"fixed", "json"} -> print_json(list)
+      {"separated", "json"} -> print_json(list)
+      {"sequential", "json"} -> print_json(list)
+      {"fixed", _} -> print_table("Modo 1 - Fixo /16 e /24", list)
+      {"separated", _} -> print_table("Modo 2 - VLSM (separado)", list)
+      {"sequential", _} -> print_table("Modo 3 - VLSM (sequencial)", list)
+      _ -> Mix.shell().info("Resposta não suportada")
+    end
+  end
+
+  defp render_outputs_map_mode(map, format) do
+    if String.downcase(format) == "json" do
+      print_json(map)
+    else
+      print_table("Modo 1 - Fixo /16 e /24", Map.fetch!(map, "fixed"))
+      print_table("Modo 2 - VLSM (separado)", Map.fetch!(map, "separated"))
+      print_table("Modo 3 - VLSM (sequencial)", Map.fetch!(map, "sequential"))
+    end
+  end
+
   defp print_table(title, rows) do
     Mix.shell().info("")
+    # Normalize rows to a consistent atom-keyed map so both local and remote data work
+    rows = Enum.map(rows, &normalize_row/1)
     Mix.shell().info("== #{title} ==")
 
     # Calcular larguras dinâmicas das colunas
@@ -191,7 +332,12 @@ defmodule Mix.Tasks.Weaver do
       case data do
         list when is_list(list) ->
           Enum.map(list, fn r ->
-            %{machines: r.machines, addr: r.addr, prefix: r.prefix, mask: r.mask}
+            %{
+              machines: Map.get(r, :machines) || Map.get(r, "machines"),
+              addr: Map.get(r, :addr) || Map.get(r, "addr"),
+              prefix: Map.get(r, :prefix) || Map.get(r, "prefix"),
+              mask: Map.get(r, :mask) || Map.get(r, "mask")
+            }
           end)
 
         map when is_map(map) ->
@@ -202,6 +348,15 @@ defmodule Mix.Tasks.Weaver do
       {:ok, s} -> IO.puts(s)
       {:error, e} -> Mix.shell().error("Erro ao gerar JSON: #{Exception.message(e)}")
     end
+  end
+
+  defp normalize_row(row) when is_map(row) do
+    %{
+      machines: Map.get(row, :machines) || Map.get(row, "machines"),
+      addr: Map.get(row, :addr) || Map.get(row, "addr"),
+      prefix: Map.get(row, :prefix) || Map.get(row, "prefix"),
+      mask: Map.get(row, :mask) || Map.get(row, "mask")
+    }
   end
 
   defp print_usage do
@@ -218,6 +373,9 @@ defmodule Mix.Tasks.Weaver do
     )
 
     Mix.shell().info("  -f, --format FORMAT         table | json (padrão: table)")
+    Mix.shell().info("  --serve                     Startar servidor TCP JSON (dev)")
+    Mix.shell().info("  --socket-host HOST          Host do servidor TCP (cliente)")
+    Mix.shell().info("  --socket-port PORT          Porta do servidor TCP (cliente)")
 
     Mix.shell().info("\nExemplos:")
     Mix.shell().info("  mix weaver -H 500,100,100 -m all -f table")
