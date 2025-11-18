@@ -9,7 +9,7 @@ defmodule Weaver.Socket.Listener do
   alias Weaver.Socket.Session
   alias Weaver.Socket.TaskSupervisor, as: SocketTaskSupervisor
 
-  @default_opts [host: "127.0.0.1", port: 4040, backlog: 1024]
+  @default_opts [host: "0.0.0.0", port: 4040, backlog: 1024]
 
   # Public API
   @spec start_link(keyword()) :: {:ok, pid()} | {:error, any()}
@@ -125,7 +125,7 @@ defmodule Weaver.Socket.Listener do
   defp parse_ip(host) when is_binary(host) do
     case :inet.parse_address(to_charlist(host)) do
       {:ok, ip} -> ip
-      _ -> {127, 0, 0, 1}
+      _ -> {0, 0, 0, 0}
     end
   end
 
