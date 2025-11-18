@@ -66,9 +66,10 @@ defmodule Mix.Tasks.Weaver do
 
     case Listener.start_link(serve_opts) do
       {:ok, _pid} ->
-        Mix.shell().info(
-          "Weaver socket server started on #{Keyword.get(serve_opts, :host, "127.0.0.1")}:#{Keyword.get(serve_opts, :port, 4040)}"
-        )
+        host = Listener.get_host()
+        port = Listener.get_port()
+
+        Mix.shell().info("Weaver socket server started on #{host}:#{port}")
 
         receive do
           :stop -> :ok

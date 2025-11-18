@@ -32,6 +32,11 @@ defmodule Weaver.Socket.Listener do
     GenServer.call(server, :port)
   end
 
+  @spec get_host(atom() | pid()) :: String.t()
+  def get_host(server \\ __MODULE__) do
+    GenServer.call(server, :host)
+  end
+
   # Callbacks
   @impl true
   def init(opts) do
@@ -71,6 +76,12 @@ defmodule Weaver.Socket.Listener do
   def handle_call(:port, _from, state) do
     {:ok, {_ip, port}} = :inet.sockname(state.listen)
     {:reply, port, state}
+  end
+
+  @impl true
+  def handle_call(:host, _from, state) do
+    {:ok, {ip, _port}} = :inet.sockname(state.listen)
+    {:reply, ip_to_string(ip), state}
   end
 
   @impl true
@@ -116,5 +127,9 @@ defmodule Weaver.Socket.Listener do
       {:ok, ip} -> ip
       _ -> {127, 0, 0, 1}
     end
+  end
+
+  defp ip_to_string(ip) do
+    to_string(:inet.ntoa(ip))
   end
 end

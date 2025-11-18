@@ -9,15 +9,15 @@ defmodule Weaver.Socket.Client do
   def call(host \\ "127.0.0.1", port \\ 4040, request \\ %{}, opts \\ []) do
     timeout = Keyword.get(opts, :timeout, @default_timeout)
 
-    ip_tuple =
+    addr =
       case :inet.parse_address(to_charlist(host)) do
         {:ok, ip} -> ip
-        _ -> {127, 0, 0, 1}
+        _ -> to_charlist(host)
       end
 
-    connect_opts = [:binary, packet: :line, active: false, reuseaddr: true, ip: ip_tuple]
+    connect_opts = [:binary, packet: :line, active: false, reuseaddr: true]
 
-    case :gen_tcp.connect(ip_tuple, port, connect_opts, timeout) do
+    case :gen_tcp.connect(addr, port, connect_opts, timeout) do
       {:ok, socket} ->
         payload = Jason.encode!(request)
         :ok = :gen_tcp.send(socket, payload <> "\n")
