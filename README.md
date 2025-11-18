@@ -108,6 +108,49 @@ iex> Weaver.vlsm_sequential([500, 100, 100])
 ]
 ```
 
+### 🧪 Servidor e Cliente TCP (JSON)
+
+O Weaver pode ser executado como um servidor TCP que aceita requisições JSON delimitadas por nova linha e retorna respostas JSON também delimitadas por nova linha. A mesma máquina também pode agir como cliente usando a CLI.
+
+Formato e Campos
+
+- Requisições: JSON delimictadas por nova linha (packet: :line).
+- Campo principal: `hosts` — lista de inteiros com número de máquinas por sub-rede.
+- Campo opcional: `mode` — `fixed` | `separated` | `sequential` | `all` (padrão: `all`).
+
+Exemplo de requisição:
+
+```json
+{"hosts": [500, 100, 100], "mode": "all"}\n
+```
+
+Exemplos de resposta:
+
+- Sucesso: `{"status":"ok","data": {...}}\n`
+- Erro: `{"status":"error","message":"..."}\n`
+
+Servidor (dev)
+
+Inicie o servidor para desenvolvimento:
+
+```bash
+mix weaver --serve
+```
+
+Por padrão o servidor é vinculado a `0.0.0.0` (todas as interfaces) a menos que você especifique `--socket-host`.
+
+Cliente (CLI)
+
+Chame um servidor em execução (local ou remoto):
+
+```bash
+# Chama servidor local (padrão localhost)
+mix weaver --hosts "500,100,100" --socket-host 127.0.0.1 --socket-port 4040 --format json
+
+# Chama servidor remoto com IP do servidor
+mix weaver --hosts "500,100,100" --socket-host <endereco-servidor> --socket-port <porta-servidor> --format json
+```
+
 ## 📐 Algoritmos e Regras
 
 ### 🏗️ Modo Fixo
@@ -185,35 +228,4 @@ Rede 3: 100 hosts → 192.168.2.128/25   (192.168.2.128 - 192.168.2.255)
 
 ## 📄 Licença
 
-MIT License
-
-## 🧪 TCP JSON Server
-
-Weaver can run as a TCP server which accepts newline-delimited JSON requests and returns newline-delimited JSON responses.
-
-Typical request payload (newline-delimited JSON):
-
-```json
-{"hosts": [500, 100, 100], "mode": "all"}\n
-```
-
-Typical responses:
-
-- Success: `{"status":"ok","data": {...}}\n`
-- Error: `{"status":"error","message":"..."}\n`
-
-Start as server (dev):
-
-```bash
-mix weaver --serve
-```
-
-<!-- HTTP wrapper removed; use TCP socket or CLI client -->
-
-Call a running server with the CLI client (example: using port 4040):
-
-```bash
-mix weaver --hosts "500,100,100" --socket-host 127.0.0.1 --socket-port 4040 --format json
-```
-
-<!-- Python client removed -->
+Licença MIT
