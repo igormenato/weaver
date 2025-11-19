@@ -299,54 +299,6 @@ Rede 3: 100 hosts → 192.168.2.128/25   (192.168.2.128 - 192.168.2.255)
 
 > Empacota sem desperdício: redes 2 e 3 compartilham o mesmo /24
 
-## � Distribuição
-
-### Binário Escript
-
-O comando `mix escript.build` gera um executável standalone que pode ser distribuído:
-
-**Vantagens:**
-
-- ✅ Arquivo único executável
-- ✅ Não precisa de Mix no sistema de destino
-- ✅ Configuração via CLI args
-
-**Requisitos:**
-
-- ⚠️ Erlang/OTP deve estar instalado no sistema de destino
-- ⚠️ Versão do Erlang deve ser compatível (>= OTP 27)
-
-**Distribuir:**
-
-```bash
-# Compilar
-mix escript.build
-
-# Copiar para sistema destino
-scp ./weaver usuario@servidor:/usr/local/bin/weaver
-
-# Usar remotamente
-ssh usuario@servidor "weaver --hosts 500,100,100 --format json"
-```
-
-### Alternativas para Distribuição
-
-**Docker (totalmente portável):**
-
-```dockerfile
-FROM elixir:1.18-alpine
-WORKDIR /app
-COPY . .
-RUN mix deps.get && mix escript.build
-ENTRYPOINT ["./weaver"]
-```
-
-```bash
-docker build -t weaver .
-docker run weaver --hosts "500,100,100" --format json
-docker run -p 4040:4040 weaver --serve --socket-host 0.0.0.0
-```
-
-## �📄 Licença
+## 📄 Licença
 
 Licença MIT
