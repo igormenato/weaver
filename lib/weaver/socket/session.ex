@@ -3,7 +3,6 @@ defmodule Weaver.Socket.Session do
   require Logger
 
   @default_timeout 5_000
-  # @max_request_length 65_536 (unused currently)
 
   @spec serve(port() | :gen_tcp.socket()) :: :ok
   def serve(socket) do

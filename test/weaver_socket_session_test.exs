@@ -2,6 +2,11 @@ defmodule Weaver.Socket.SessionTest do
   use ExUnit.Case
   alias Weaver.Socket.{Client, Listener}
 
+  setup do
+    start_supervised!({Task.Supervisor, name: Weaver.Socket.TaskSupervisor})
+    :ok
+  end
+
   test "invalid json returns error status" do
     {:ok, _} = start_supervised({Listener, [port: 0, name: :session_test_listener]})
     port = Listener.get_port(:session_test_listener)

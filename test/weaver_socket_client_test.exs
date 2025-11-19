@@ -2,6 +2,11 @@ defmodule Weaver.Socket.ClientTest do
   use ExUnit.Case
   alias Weaver.Socket.{Client, Listener}
 
+  setup do
+    start_supervised!({Task.Supervisor, name: Weaver.Socket.TaskSupervisor})
+    :ok
+  end
+
   test "client returns data from server" do
     # start listener on ephemeral port
     {:ok, _pid} = start_supervised({Listener, [port: 0, name: :weaver_test_listener]})

@@ -10,16 +10,34 @@ Ferramenta para calcular alocações de sub-redes IPv4 com três estratégias di
 
 ## 🚀 Instalação
 
-**Requisitos:** Elixir >= 1.18
+**Requisitos:** Elixir >= 1.18 (ou Erlang/OTP 27+ para usar o binário pré-compilado)
 
-**Setup do projeto:**
+### Opção 1: Binário Standalone (Recomendado)
 
 ```bash
-# Clone e prepare o ambiente
+# Clone e compile o binário
+git clone https://github.com/igormenato/weaver
+cd weaver
+mix deps.get
+mix escript.build
+
+# Agora você tem o executável ./weaver pronto para uso
+./weaver --help
+```
+
+O binário `./weaver` pode ser copiado para qualquer sistema com Erlang instalado.
+
+### Opção 2: Desenvolvimento com Mix
+
+```bash
+# Setup do projeto
 git clone https://github.com/igormenato/weaver
 cd weaver
 mix deps.get
 mix compile
+
+# Executar via Mix
+mix weaver --help
 ```
 
 **Verificar instalação:**
@@ -30,10 +48,12 @@ mix test
 
 ## 🎮 Início Rápido
 
-**📱 Via CLI (Interativo):**
+### 🔷 Usando o Binário (./weaver)
+
+**📱 Modo Interativo:**
 
 ```bash
-$ mix weaver
+$ ./weaver
 Quantas redes?
 > 3
 Quantas máquinas na rede 1?
@@ -71,21 +91,34 @@ Quantas máquinas na rede 3?
 └──────────┴──────────────────┴─────────┴─────────────────────┘
 ```
 
-**⚙️ Via CLI (Não-interativo):**
+**⚙️ Modo Não-interativo:**
 
 ```bash
 # Executa só um modo, saída em tabela (padrão)
-mix weaver --hosts "500,100,100" --mode fixed
-mix weaver -H "500 100 100" -m separated
-mix weaver -H 500,100,100 -m sequential
+./weaver --hosts "500,100,100" --mode fixed
+./weaver -H "500 100 100" -m separated
+./weaver -H 500,100,100 -m sequential
 
 # Saída JSON (para automatização)
-mix weaver -H 500,100,100 --mode all --format json
+./weaver -H 500,100,100 --mode all --format json
+```
+
+### 🔶 Usando Mix (Desenvolvimento)
+
+```bash
+# Modo interativo
+mix weaver
+
+# Modo não-interativo
+mix weaver --hosts "500,100,100" --mode all --format json
 ```
 
 **🔧 Via API (Programático):**
 
 ```elixir
+# Inicie o shell interativo
+iex -S mix
+
 iex> Weaver.fixed_masks([500, 100, 100])
 [
   %{machines: 500, addr: "172.16.0.0", prefix: 16, mask: "255.255.0.0"},
@@ -110,11 +143,11 @@ iex> Weaver.vlsm_sequential([500, 100, 100])
 
 ### 🧪 Servidor e Cliente TCP (JSON)
 
-O Weaver pode ser executado como um servidor TCP que aceita requisições JSON delimitadas por nova linha e retorna respostas JSON também delimitadas por nova linha. A mesma máquina também pode agir como cliente usando a CLI.
+O Weaver pode ser executado como um servidor TCP que aceita requisições JSON delimitadas por nova linha e retorna respostas JSON também delimitadas por nova linha.
 
-Formato e Campos
+**Formato e Campos:**
 
-- Requisições: JSON delimictadas por nova linha (packet: :line).
+- Requisições: JSON delimitadas por nova linha (packet: :line).
 - Campo principal: `hosts` — lista de inteiros com número de máquinas por sub-rede.
 - Campo opcional: `mode` — `fixed` | `separated` | `sequential` | `all` (padrão: `all`).
 
@@ -127,28 +160,68 @@ Exemplo de requisição:
 Exemplos de resposta:
 
 - Sucesso: `{"status":"ok","data": {...}}\n`
-- Erro: `{"status":"error","message":"..."}\n`
+- Erro: `{"status":"error","code":"invalid_mode","message":"..."}\n`
 
-Servidor (dev)
+#### Iniciar Servidor
 
-Inicie o servidor para desenvolvimento:
+**Com binário:**
+
+```bash
+# Inicia na porta padrão 4040 em todas as interfaces (0.0.0.0)
+./weaver --serve
+
+# Customizar host e porta
+./weaver --serve --socket-host 127.0.0.1 --socket-port 8080
+```
+
+**Com Mix (desenvolvimento):**
 
 ```bash
 mix weaver --serve
+mix weaver --serve --socket-host 0.0.0.0 --socket-port 4040
 ```
 
-Por padrão o servidor é vinculado a `0.0.0.0` (todas as interfaces) a menos que você especifique `--socket-host`.
+**Configuração padrão** (em `config/config.exs`):
 
-Cliente (CLI)
+```elixir
+config :weaver, Weaver.Socket,
+  host: "0.0.0.0",        # Todas as interfaces
+  port: 4040,              # Porta padrão
+  max_hosts: 1024,         # Máximo de redes por requisição
+  max_host_value: 65_535,  # Valor máximo por host
+  read_timeout_ms: 5_000   # Timeout de leitura
+```
 
-Chame um servidor em execução (local ou remoto):
+#### Usar Cliente
+
+**Com binário:**
 
 ```bash
-# Chama servidor local (padrão localhost)
-mix weaver --hosts "500,100,100" --socket-host 127.0.0.1 --socket-port 4040 --format json
+# Conectar ao servidor local
+./weaver --hosts "500,100,100" --socket-host 127.0.0.1 --socket-port 4040 --format json
 
-# Chama servidor remoto com IP do servidor
-mix weaver --hosts "500,100,100" --socket-host <endereco-servidor> --socket-port <porta-servidor> --format json
+# Conectar a servidor remoto
+./weaver --hosts "500,100,100" --socket-host <ip-servidor> --socket-port 4040 --format json
+```
+
+**Com Mix:**
+
+```bash
+mix weaver --hosts "500,100,100" --socket-host 127.0.0.1 --socket-port 4040 --format json
+```
+
+**Via código (Elixir):**
+
+```elixir
+alias Weaver.Socket.Client
+
+# Conectar e fazer requisição
+{:ok, response} = Client.call("127.0.0.1", 4040, %{
+  "hosts" => [500, 100, 100],
+  "mode" => "all"
+})
+
+# response = %{"status" => "ok", "data" => %{"fixed" => [...], ...}}
 ```
 
 ## 📐 Algoritmos e Regras
@@ -226,6 +299,54 @@ Rede 3: 100 hosts → 192.168.2.128/25   (192.168.2.128 - 192.168.2.255)
 
 > Empacota sem desperdício: redes 2 e 3 compartilham o mesmo /24
 
-## 📄 Licença
+## � Distribuição
+
+### Binário Escript
+
+O comando `mix escript.build` gera um executável standalone que pode ser distribuído:
+
+**Vantagens:**
+
+- ✅ Arquivo único executável
+- ✅ Não precisa de Mix no sistema de destino
+- ✅ Configuração via CLI args
+
+**Requisitos:**
+
+- ⚠️ Erlang/OTP deve estar instalado no sistema de destino
+- ⚠️ Versão do Erlang deve ser compatível (>= OTP 27)
+
+**Distribuir:**
+
+```bash
+# Compilar
+mix escript.build
+
+# Copiar para sistema destino
+scp ./weaver usuario@servidor:/usr/local/bin/weaver
+
+# Usar remotamente
+ssh usuario@servidor "weaver --hosts 500,100,100 --format json"
+```
+
+### Alternativas para Distribuição
+
+**Docker (totalmente portável):**
+
+```dockerfile
+FROM elixir:1.18-alpine
+WORKDIR /app
+COPY . .
+RUN mix deps.get && mix escript.build
+ENTRYPOINT ["./weaver"]
+```
+
+```bash
+docker build -t weaver .
+docker run weaver --hosts "500,100,100" --format json
+docker run -p 4040:4040 weaver --serve --socket-host 0.0.0.0
+```
+
+## �📄 Licença
 
 Licença MIT

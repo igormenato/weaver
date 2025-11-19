@@ -4,6 +4,11 @@ defmodule Mix.Tasks.Weaver.SocketTest do
   alias Mix.Tasks.Weaver, as: WeaverTask
   alias Weaver.Socket.Listener
 
+  setup do
+    start_supervised!({Task.Supervisor, name: Weaver.Socket.TaskSupervisor})
+    :ok
+  end
+
   test "mix task uses socket client when socket-host/port provided" do
     {:ok, _pid} =
       start_supervised({Listener, [port: 0, name: :weaver_cli_test_listener]})

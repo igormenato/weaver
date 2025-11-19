@@ -21,6 +21,12 @@ weaver-*.tar
 
 # Temporary files, for example, from tests.
 /tmp/
+tmp_build/
 
 # Ignore ElixirLS files
 .elixir_ls/
+
+# Burrito build output
+/burrito_out/
+
+weaver

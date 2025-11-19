@@ -2,6 +2,8 @@ defmodule Weaver.Socket.Listener do
   @moduledoc """
   TCP listener that accepts incoming connections and spawns a session
   task for each one using `Weaver.Socket.TaskSupervisor`.
+
+  Supports connection limiting via `:max_connections` option to prevent DoS.
   """
   use GenServer
 
@@ -9,7 +11,7 @@ defmodule Weaver.Socket.Listener do
   alias Weaver.Socket.Session
   alias Weaver.Socket.TaskSupervisor, as: SocketTaskSupervisor
 
-  @default_opts [host: "0.0.0.0", port: 4040, backlog: 1024]
+  @default_opts [backlog: 1024, max_connections: 100]
 
   # Public API
   @spec start_link(keyword()) :: {:ok, pid()} | {:error, any()}
@@ -39,15 +41,20 @@ defmodule Weaver.Socket.Listener do
 
   # Callbacks
   @impl true
-  def init(opts) do
-    app_opts = Application.get_env(:weaver, Weaver.Socket, []) || []
-    given_opts = opts
-    opts = Keyword.merge(@default_opts, app_opts)
-    opts = Keyword.merge(opts, given_opts)
+  def init(given_opts) do
+    # Priority: CLI args (given_opts) > config > module defaults
+    app_config = Application.get_env(:weaver, Weaver.Socket, []) || []
 
-    host = Keyword.get(opts, :host)
-    port = Keyword.get(opts, :port)
-    backlog = Keyword.get(opts, :backlog)
+    opts =
+      @default_opts
+      |> Keyword.merge(app_config)
+      |> Keyword.merge(given_opts)
+
+    # Fetch with defaults if not present after merge
+    host = Keyword.get(opts, :host, "0.0.0.0")
+    port = Keyword.get(opts, :port, 4040)
+    backlog = Keyword.get(opts, :backlog, 1024)
+    max_connections = Keyword.get(opts, :max_connections, 100)
 
     ip_tuple = parse_ip(host)
 
@@ -63,8 +70,14 @@ defmodule Weaver.Socket.Listener do
     case :gen_tcp.listen(port, listen_opts) do
       {:ok, lsock} ->
         Logger.info("Weaver.Socket.Listener started on #{host}:#{port}")
-        {:ok, accept_pid} = Task.start(fn -> accept_loop(lsock) end)
-        {:ok, %{listen: lsock, accept_pid: accept_pid}}
+        {:ok, accept_pid} = Task.start(fn -> accept_loop(lsock, max_connections) end)
+
+        {:ok,
+         %{
+           listen: lsock,
+           accept_pid: accept_pid,
+           max_connections: max_connections
+         }}
 
       {:error, reason} ->
         Logger.error("Failed to start listener: #{inspect(reason)}")
@@ -93,19 +106,28 @@ defmodule Weaver.Socket.Listener do
     :ok
   end
 
-  defp accept_loop(listen_socket) do
-    case :gen_tcp.accept(listen_socket) do
-      {:ok, socket} ->
-        start_session_task(socket)
-        accept_loop(listen_socket)
+  defp accept_loop(listen_socket, max_connections) do
+    # Check current connection count
+    case Task.Supervisor.children(SocketTaskSupervisor) |> length() do
+      count when count >= max_connections ->
+        Logger.warning("Max connections (#{max_connections}) reached, rejecting new connections")
+        :timer.sleep(100)
+        accept_loop(listen_socket, max_connections)
 
-      {:error, :closed} ->
-        :ok
+      _ ->
+        case :gen_tcp.accept(listen_socket) do
+          {:ok, socket} ->
+            start_session_task(socket)
+            accept_loop(listen_socket, max_connections)
 
-      {:error, reason} ->
-        Logger.error("Accept error: #{inspect(reason)}")
-        :timer.sleep(1000)
-        accept_loop(listen_socket)
+          {:error, :closed} ->
+            :ok
+
+          {:error, reason} ->
+            Logger.error("Accept error: #{inspect(reason)}")
+            :timer.sleep(1000)
+            accept_loop(listen_socket, max_connections)
+        end
     end
   end
 
@@ -124,8 +146,15 @@ defmodule Weaver.Socket.Listener do
 
   defp parse_ip(host) when is_binary(host) do
     case :inet.parse_address(to_charlist(host)) do
-      {:ok, ip} -> ip
-      _ -> {0, 0, 0, 0}
+      {:ok, ip} ->
+        ip
+
+      {:error, reason} ->
+        Logger.warning(
+          "Invalid IP address '#{host}': #{inspect(reason)}, falling back to 0.0.0.0"
+        )
+
+        {0, 0, 0, 0}
     end
   end
 

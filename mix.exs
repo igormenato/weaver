@@ -8,7 +8,8 @@ defmodule Weaver.MixProject do
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      dialyzer: [plt_add_apps: [:mix]]
+      dialyzer: [plt_add_apps: [:mix]],
+      escript: escript()
     ]
   end
 
@@ -18,6 +19,10 @@ defmodule Weaver.MixProject do
       mod: {Weaver.Application, []},
       extra_applications: [:logger]
     ]
+  end
+
+  def escript do
+    [main_module: Weaver.CLI]
   end
 
   # Run "mix help deps" to learn about dependencies.
