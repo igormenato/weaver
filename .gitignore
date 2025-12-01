@@ -25,5 +25,3 @@ tmp_build/
 
 # Ignore ElixirLS files
 .elixir_ls/
-
-weaver
