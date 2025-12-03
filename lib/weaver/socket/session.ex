@@ -27,11 +27,12 @@ defmodule Weaver.Socket.Session do
     send_error(socket, :recv_error, "recv error: #{inspect(reason)}")
   end
 
-  defp handle_request(socket, data, max_hosts, max_host_value) do
+  defp handle_request(socket, data, opts) do
     json = String.trim(data)
 
     with {:ok, request} <- decode(json),
-         :ok <- validate_request(request, max_hosts, max_host_value) do
+         :ok <- validate_auth(request, opts),
+         :ok <- validate_request(request, opts.max_hosts, opts.max_host_value) do
       case do_dispatch(request) do
         {:ok, response} -> send_response(socket, response)
         {:error, {code, message}} -> send_error(socket, code, message)
@@ -39,6 +40,20 @@ defmodule Weaver.Socket.Session do
     else
       {:error, {code, message}} -> send_error(socket, code, message)
     end
+  end
+
+  defp validate_auth(_request, %{auth_enabled: false}), do: :ok
+
+  defp validate_auth(%{"user" => user, "password" => password}, opts) do
+    if user == opts.auth_user and password == opts.auth_password do
+      :ok
+    else
+      {:error, {:auth_failed, "invalid credentials"}}
+    end
+  end
+
+  defp validate_auth(_request, %{auth_enabled: true}) do
+    {:error, {:auth_required, "authentication required (user/password)"}}
   end
 
   defp decode(s) do
@@ -137,7 +152,10 @@ defmodule Weaver.Socket.Session do
       timeout: opts[:read_timeout_ms] || @default_timeout,
       max_request_length: opts[:max_request_length] || 65_536,
       max_hosts: opts[:max_hosts] || 1024,
-      max_host_value: opts[:max_host_value] || 65_535
+      max_host_value: opts[:max_host_value] || 65_535,
+      auth_enabled: opts[:auth_enabled] || false,
+      auth_user: opts[:auth_user],
+      auth_password: opts[:auth_password]
     }
   end
 
@@ -145,7 +163,7 @@ defmodule Weaver.Socket.Session do
     if byte_size(data) > opts.max_request_length do
       send_error(socket, :payload_too_large, "payload too large")
     else
-      handle_request(socket, data, opts.max_hosts, opts.max_host_value)
+      handle_request(socket, data, opts)
     end
   end
 end

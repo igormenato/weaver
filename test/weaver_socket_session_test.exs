@@ -90,4 +90,70 @@ defmodule Weaver.Socket.SessionTest do
 
     Application.put_env(:weaver, Weaver.Socket, old)
   end
+
+  test "auth required when enabled but no credentials provided" do
+    old = Application.get_env(:weaver, Weaver.Socket, [])
+
+    Application.put_env(
+      :weaver,
+      Weaver.Socket,
+      Keyword.merge(old, auth_enabled: true, auth_user: "admin", auth_password: "secret")
+    )
+
+    {:ok, _} = start_supervised({Listener, [port: 0, name: :session_test_auth1]})
+    port = Listener.get_port(:session_test_auth1)
+
+    {:error, {code, msg}} =
+      Client.call("127.0.0.1", port, %{"hosts" => [100]})
+
+    assert code == "auth_required"
+    assert msg =~ "authentication required"
+
+    Application.put_env(:weaver, Weaver.Socket, old)
+  end
+
+  test "auth fails with wrong credentials" do
+    old = Application.get_env(:weaver, Weaver.Socket, [])
+
+    Application.put_env(
+      :weaver,
+      Weaver.Socket,
+      Keyword.merge(old, auth_enabled: true, auth_user: "admin", auth_password: "secret")
+    )
+
+    {:ok, _} = start_supervised({Listener, [port: 0, name: :session_test_auth2]})
+    port = Listener.get_port(:session_test_auth2)
+
+    {:error, {code, msg}} =
+      Client.call("127.0.0.1", port, %{"hosts" => [100]}, user: "admin", password: "wrong")
+
+    assert code == "auth_failed"
+    assert msg =~ "invalid credentials"
+
+    Application.put_env(:weaver, Weaver.Socket, old)
+  end
+
+  test "auth succeeds with correct credentials" do
+    old = Application.get_env(:weaver, Weaver.Socket, [])
+
+    Application.put_env(
+      :weaver,
+      Weaver.Socket,
+      Keyword.merge(old, auth_enabled: true, auth_user: "admin", auth_password: "secret")
+    )
+
+    {:ok, _} = start_supervised({Listener, [port: 0, name: :session_test_auth3]})
+    port = Listener.get_port(:session_test_auth3)
+
+    {:ok, resp} =
+      Client.call("127.0.0.1", port, %{"hosts" => [100], "mode" => "fixed"},
+        user: "admin",
+        password: "secret"
+      )
+
+    assert resp["status"] == "ok"
+    assert is_list(resp["data"])
+
+    Application.put_env(:weaver, Weaver.Socket, old)
+  end
 end
