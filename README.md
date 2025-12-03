@@ -27,6 +27,8 @@ mix escript.build
 
 O binário `./weaver` pode ser copiado para qualquer sistema com Erlang instalado.
 
+> **Windows:** Use `escript weaver` em vez de `./weaver`. Exemplo: `escript weaver --help`
+
 ### Opção 2: Desenvolvimento com Mix
 
 ```bash
