@@ -8,7 +8,6 @@ config :weaver, Weaver.Socket,
   max_hosts: 1024,
   max_host_value: 65_535,
   read_timeout_ms: 5_000,
-  # Authentication (disabled by default)
-  auth_enabled: true,
-  auth_user: "weaver",
+  auth_enabled: false,
+  auth_user: "admin",
   auth_password: "secret"
