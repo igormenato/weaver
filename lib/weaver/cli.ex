@@ -33,7 +33,9 @@ defmodule Weaver.CLI do
         help: :boolean,
         serve: :boolean,
         socket_host: :string,
-        socket_port: :integer
+        socket_port: :integer,
+        socket_user: :string,
+        socket_password: :string
       ],
       aliases: [H: :hosts, m: :mode, f: :format, h: :help]
     )
@@ -50,20 +52,28 @@ defmodule Weaver.CLI do
 
     socket_host = Keyword.get(opts, :socket_host)
     socket_port = Keyword.get(opts, :socket_port)
+    socket_user = Keyword.get(opts, :socket_user)
+    socket_password = Keyword.get(opts, :socket_password)
 
     if socket_host || socket_port do
       host = socket_host || "127.0.0.1"
       port = socket_port || 4040
-      run_client_request(host, port, machines, mode, format)
+
+      client_opts = [
+        user: socket_user,
+        password: socket_password
+      ]
+
+      run_client_request(host, port, machines, mode, format, client_opts)
     else
       run_non_interactive(machines, mode, format)
     end
   end
 
-  defp run_client_request(host, port, machines, mode, format) do
+  defp run_client_request(host, port, machines, mode, format, client_opts) do
     request = %{"hosts" => machines, "mode" => mode}
 
-    case Client.call(host, port, request) do
+    case Client.call(host, port, request, client_opts) do
       {:ok, %{"status" => "ok", "data" => data}} ->
         handle_server_response(data, mode, format)
 
@@ -338,10 +348,16 @@ defmodule Weaver.CLI do
     IO.puts("  --serve                     Startar servidor TCP JSON (dev)")
     IO.puts("  --socket-host HOST          Host do servidor TCP (cliente)")
     IO.puts("  --socket-port PORT          Porta do servidor TCP (cliente)")
+    IO.puts("  --socket-user USER          Usuário para autenticação")
+    IO.puts("  --socket-password PASS      Senha para autenticação")
 
     IO.puts("\nExemplos:")
     IO.puts("  [binary] -H 500,100,100 -m all -f table")
     IO.puts("  [binary] -H \"500 100 100\" -m sequential --format json")
+
+    IO.puts(
+      "  [binary] -H 500,100 --socket-host 127.0.0.1 --socket-user admin --socket-password secret"
+    )
   end
 
   defp safe(fun) when is_function(fun, 0) do

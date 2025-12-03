@@ -8,6 +8,14 @@ defmodule Weaver.Socket.Client do
   @spec call(String.t(), pos_integer(), map(), keyword()) :: {:ok, map()} | {:error, any()}
   def call(host \\ "127.0.0.1", port \\ 4040, request \\ %{}, opts \\ []) do
     timeout = Keyword.get(opts, :timeout, @default_timeout)
+    user = Keyword.get(opts, :user)
+    password = Keyword.get(opts, :password)
+
+    # Add credentials to request if provided
+    request =
+      request
+      |> maybe_put("user", user)
+      |> maybe_put("password", password)
 
     addr =
       case :inet.parse_address(to_charlist(host)) do
@@ -46,4 +54,7 @@ defmodule Weaver.Socket.Client do
       {:error, reason} -> {:error, {:invalid_json, Exception.message(reason)}}
     end
   end
+
+  defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 end

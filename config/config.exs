@@ -7,4 +7,7 @@ config :weaver, Weaver.Socket,
   max_request_length: 65_536,
   max_hosts: 1024,
   max_host_value: 65_535,
-  read_timeout_ms: 5_000
+  read_timeout_ms: 5_000,
+  auth_enabled: false,
+  auth_user: "admin",
+  auth_password: "secret"

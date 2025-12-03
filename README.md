@@ -152,11 +152,18 @@ O Weaver pode ser executado como um servidor TCP que aceita requisições JSON d
 - Requisições: JSON delimitadas por nova linha (packet: :line).
 - Campo principal: `hosts` — lista de inteiros com número de máquinas por sub-rede.
 - Campo opcional: `mode` — `fixed` | `separated` | `sequential` | `all` (padrão: `all`).
+- Campos de autenticação (quando habilitada): `user` e `password`.
 
 Exemplo de requisição:
 
 ```json
 {"hosts": [500, 100, 100], "mode": "all"}\n
+```
+
+Exemplo com autenticação:
+
+```json
+{"user": "admin", "password": "secret", "hosts": [500, 100, 100], "mode": "all"}\n
 ```
 
 Exemplos de resposta:
@@ -191,7 +198,11 @@ config :weaver, Weaver.Socket,
   port: 4040,              # Porta padrão
   max_hosts: 1024,         # Máximo de redes por requisição
   max_host_value: 65_535,  # Valor máximo por host
-  read_timeout_ms: 5_000   # Timeout de leitura
+  read_timeout_ms: 5_000,  # Timeout de leitura
+  # Autenticação (desabilitada por padrão)
+  auth_enabled: false,
+  auth_user: "admin",
+  auth_password: "secret"
 ```
 
 #### Usar Cliente
@@ -201,6 +212,9 @@ config :weaver, Weaver.Socket,
 ```bash
 # Conectar ao servidor local
 ./weaver --hosts "500,100,100" --socket-host 127.0.0.1 --socket-port 4040 --format json
+
+# Conectar com autenticação
+./weaver --hosts "500,100,100" --socket-host 127.0.0.1 --socket-user admin --socket-password secret --format json
 
 # Conectar a servidor remoto
 ./weaver --hosts "500,100,100" --socket-host <ip-servidor> --socket-port 4040 --format json
@@ -222,6 +236,12 @@ alias Weaver.Socket.Client
   "hosts" => [500, 100, 100],
   "mode" => "all"
 })
+
+# Com autenticação
+{:ok, response} = Client.call("127.0.0.1", 4040, %{
+  "hosts" => [500, 100, 100],
+  "mode" => "all"
+}, user: "admin", password: "secret")
 
 # response = %{"status" => "ok", "data" => %{"fixed" => [...], ...}}
 ```
