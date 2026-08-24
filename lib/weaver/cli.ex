@@ -133,6 +133,7 @@ defmodule Weaver.CLI do
   end
 
   defp print_results(results, _mode, _format) do
+    IO.puts("")
     Enum.each(results, fn {_name, title, rows} -> print_table(title, rows) end)
   end
 
