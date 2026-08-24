@@ -4,28 +4,18 @@ defmodule Weaver.MixProject do
   def project do
     [
       app: :weaver,
-      version: "0.1.0",
+      version: "0.2.0",
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      dialyzer: [plt_add_apps: [:mix]],
-      escript: escript()
+      dialyzer: [plt_add_apps: [:mix]]
     ]
   end
 
-  # Run "mix help compile.app" to learn about applications.
   def application do
-    [
-      mod: {Weaver.Application, []},
-      extra_applications: [:logger]
-    ]
+    []
   end
 
-  def escript do
-    [main_module: Weaver.CLI]
-  end
-
-  # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},

@@ -1,61 +1,27 @@
 # Weaver
 
-🌐 **Planejador de sub-redes IPv4 em Elixir**
+Weaver planeja sub-redes IPv4. O mesmo código é uma biblioteca Elixir e a Mix task `mix weaver`.
 
-Ferramenta para calcular alocações de sub-redes IPv4 com três estratégias diferentes:
+As funções públicas são `Weaver.fixed_masks/1`, `Weaver.vlsm_separated/1` e `Weaver.vlsm_sequential/1`. Cada uma recebe uma lista de inteiros com a contagem de máquinas por rede. O retorno é uma lista de mapas `%{machines, addr, prefix, mask}` na ordem da entrada.
 
-- **Máscaras fixas** - /16 e /24 baseado no número de hosts
-- **VLSM separado** - Otimizado com gaps entre sub-redes
-- **VLSM sequencial** - Empacotamento contíguo sem desperdício
+## Instalar
 
-## 🚀 Instalação
-
-**Requisitos:** Elixir >= 1.18 (ou Erlang/OTP 27+ para usar o binário pré-compilado)
-
-### Opção 1: Binário Standalone (Recomendado)
+Você precisa de Elixir `~> 1.18`.
 
 ```bash
-# Clone e compile o binário
 git clone https://github.com/igormenato/weaver
 cd weaver
 mix deps.get
-mix escript.build
-
-# Agora você tem o executável ./weaver pronto para uso
-./weaver --help
-```
-
-O binário `./weaver` pode ser copiado para qualquer sistema com Erlang instalado.
-
-> **Windows:** Use `escript weaver` em vez de `./weaver`. Exemplo: `escript weaver --help`
-
-### Opção 2: Desenvolvimento com Mix
-
-```bash
-# Setup do projeto
-git clone https://github.com/igormenato/weaver
-cd weaver
-mix deps.get
-mix compile
-
-# Executar via Mix
 mix weaver --help
-```
-
-**Verificar instalação:**
-
-```bash
 mix test
 ```
 
-## 🎮 Início Rápido
+## Usar o CLI
 
-### 🔷 Usando o Binário (./weaver)
+Sem argumentos, o CLI pergunta quantas redes existem e quantas máquinas cada uma tem. A saída é tabela nos três modos.
 
-**📱 Modo Interativo:**
-
-```bash
-$ ./weaver
+```
+$ mix weaver
 Quantas redes?
 > 3
 Quantas máquinas na rede 1?
@@ -93,234 +59,52 @@ Quantas máquinas na rede 3?
 └──────────┴──────────────────┴─────────┴─────────────────────┘
 ```
 
-**⚙️ Modo Não-interativo:**
+Para pular o diálogo, passe `--hosts`. A lista aceita vírgula ou espaço.
 
 ```bash
-# Executa só um modo, saída em tabela (padrão)
-./weaver --hosts "500,100,100" --mode fixed
-./weaver -H "500 100 100" -m separated
-./weaver -H 500,100,100 -m sequential
-
-# Saída JSON (para automatização)
-./weaver -H 500,100,100 --mode all --format json
+mix weaver --hosts "500,100,100"
+mix weaver -H "500 100 100" -m separated
+mix weaver -H 500,100,100 -m sequential --format json
 ```
 
-### 🔶 Usando Mix (Desenvolvimento)
+`--mode` aceita `fixed`, `separated`, `sequential` ou `all`. O padrão é `all`. `--format` aceita `table` ou `json`. O padrão é `table`.
 
-```bash
-# Modo interativo
-mix weaver
-
-# Modo não-interativo
-mix weaver --hosts "500,100,100" --mode all --format json
-```
-
-**🔧 Via API (Programático):**
+## Usar a biblioteca
 
 ```elixir
-# Inicie o shell interativo
 iex -S mix
 
-iex> Weaver.fixed_masks([500, 100, 100])
-[
-  %{machines: 500, addr: "172.16.0.0", prefix: 16, mask: "255.255.0.0"},
-  %{machines: 100, addr: "192.168.0.0", prefix: 24, mask: "255.255.255.0"},
-  %{machines: 100, addr: "192.168.1.0", prefix: 24, mask: "255.255.255.0"}
-]
-
-iex> Weaver.vlsm_separated([500, 100, 100])
-[
-  %{machines: 500, addr: "192.168.0.0", prefix: 23, mask: "255.255.254.0"},
-  %{machines: 100, addr: "192.168.2.0", prefix: 25, mask: "255.255.255.128"},
-  %{machines: 100, addr: "192.168.3.0", prefix: 25, mask: "255.255.255.128"}
-]
-
-iex> Weaver.vlsm_sequential([500, 100, 100])
-[
-  %{machines: 500, addr: "192.168.0.0", prefix: 23, mask: "255.255.254.0"},
-  %{machines: 100, addr: "192.168.2.0", prefix: 25, mask: "255.255.255.128"},
-  %{machines: 100, addr: "192.168.2.128", prefix: 25, mask: "255.255.255.128"}
-]
+Weaver.fixed_masks([500, 100, 100])
+Weaver.vlsm_separated([500, 100, 100])
+Weaver.vlsm_sequential([500, 100, 100])
 ```
 
-### 🧪 Servidor e Cliente TCP (JSON)
+Cada item tem `machines`, `addr`, `prefix` e `mask`. Contagem inválida ou falta de espaço levanta `ArgumentError`.
 
-O Weaver pode ser executado como um servidor TCP que aceita requisições JSON delimitadas por nova linha e retorna respostas JSON também delimitadas por nova linha.
+## Como os modos alocam
 
-**Formato e Campos:**
+### Máscaras fixas
 
-- Requisições: JSON delimitadas por nova linha (packet: :line).
-- Campo principal: `hosts` — lista de inteiros com número de máquinas por sub-rede.
-- Campo opcional: `mode` — `fixed` | `separated` | `sequential` | `all` (padrão: `all`).
-- Campos de autenticação (quando habilitada): `user` e `password`.
+`Weaver.fixed_masks/1` não calcula prefixo. Ele escolhe `/16` ou `/24` pela contagem.
 
-Exemplo de requisição:
+Se `hosts > 254`, a rede vai para `172.16.0.0/16`, depois `172.17.0.0/16`, até `172.31.0.0/16`. São 16 redes. A 17ª rede `/16` levanta erro.
 
-```json
-{"hosts": [500, 100, 100], "mode": "all"}\n
-```
+Se `hosts <= 254`, a rede vai para `192.168.0.0/24`, depois `192.168.1.0/24`, até 256 redes. A 257ª rede `/24` também levanta erro.
 
-Exemplo com autenticação:
+As duas filas avançam à parte. Uma rede grande não consome índice da fila `/24`.
 
-```json
-{"user": "admin", "password": "secret", "hosts": [500, 100, 100], "mode": "all"}\n
-```
+### VLSM
 
-Exemplos de resposta:
+`Weaver.vlsm_separated/1` e `Weaver.vlsm_sequential/1` partem de `192.168.0.0/16`. `prefix_for_hosts/1` escolhe o menor prefixo com `2^(32 - prefixo) - 2` endereços úteis suficientes. O prefixo máximo é `/30`.
 
-- Sucesso: `{"status":"ok","data": {...}}\n`
-- Erro: `{"status":"error","code":"invalid_mode","message":"..."}\n`
+A alocação ordena a maior rede primeiro. O resultado volta na ordem original da lista.
 
-#### Iniciar Servidor
+Cada bloco alinha o cursor com `align_up` para o tamanho do prefixo. Se o último endereço passar de `192.168.255.255`, a função levanta erro.
 
-**Com binário:**
+Em `separated`, depois de alocar, o cursor faz `align_up` para o próximo `/24`. Redes menores não compartilham o mesmo `/24`.
 
-```bash
-# Inicia na porta padrão 4040 em todas as interfaces (0.0.0.0)
-./weaver --serve
+Em `sequential`, o cursor vira `net + block_size`. O próximo bloco começa no endereço seguinte, ainda alinhado ao próprio prefixo.
 
-# Customizar host e porta
-./weaver --serve --socket-host 127.0.0.1 --socket-port 8080
-```
+## Licença
 
-**Com Mix (desenvolvimento):**
-
-```bash
-mix weaver --serve
-mix weaver --serve --socket-host 0.0.0.0 --socket-port 4040
-```
-
-**Configuração padrão** (em `config/config.exs`):
-
-```elixir
-config :weaver, Weaver.Socket,
-  host: "0.0.0.0",        # Todas as interfaces
-  port: 4040,              # Porta padrão
-  max_hosts: 1024,         # Máximo de redes por requisição
-  max_host_value: 65_535,  # Valor máximo por host
-  read_timeout_ms: 5_000,  # Timeout de leitura
-  # Autenticação (desabilitada por padrão)
-  auth_enabled: false,
-  auth_user: "admin",
-  auth_password: "secret"
-```
-
-#### Usar Cliente
-
-**Com binário:**
-
-```bash
-# Conectar ao servidor local
-./weaver --hosts "500,100,100" --socket-host 127.0.0.1 --socket-port 4040 --format json
-
-# Conectar com autenticação
-./weaver --hosts "500,100,100" --socket-host 127.0.0.1 --socket-user admin --socket-password secret --format json
-
-# Conectar a servidor remoto
-./weaver --hosts "500,100,100" --socket-host <ip-servidor> --socket-port 4040 --format json
-```
-
-**Com Mix:**
-
-```bash
-mix weaver --hosts "500,100,100" --socket-host 127.0.0.1 --socket-port 4040 --format json
-```
-
-**Via código (Elixir):**
-
-```elixir
-alias Weaver.Socket.Client
-
-# Conectar e fazer requisição
-{:ok, response} = Client.call("127.0.0.1", 4040, %{
-  "hosts" => [500, 100, 100],
-  "mode" => "all"
-})
-
-# Com autenticação
-{:ok, response} = Client.call("127.0.0.1", 4040, %{
-  "hosts" => [500, 100, 100],
-  "mode" => "all"
-}, user: "admin", password: "secret")
-
-# response = %{"status" => "ok", "data" => %{"fixed" => [...], ...}}
-```
-
-## 📐 Algoritmos e Regras
-
-### 🏗️ Modo Fixo
-
-Utiliza máscaras pré-determinadas baseadas no número de hosts:
-
-- **Hosts > 254**: Máscara `/16`
-
-  - Faixa: `172.16.0.0/16`, `172.17.0.0/16`, etc.
-  - Capacidade: ~65.000 hosts por rede
-
-- **Hosts ≤ 254**: Máscara `/24`
-  - Faixa: `192.168.0.0/24`, `192.168.1.0/24`, etc.
-  - Capacidade: 254 hosts por rede
-
-**Limitações**: Verifica espaço disponível e gera erro quando excede capacidade.
-
-### 🧩 VLSM (Variable Length Subnet Mask)
-
-Cálculo dinâmico de máscaras otimizadas:
-
-- **Espaço base**: `192.168.0.0/16` (65.536 endereços)
-- **Cálculo automático**: Menor prefixo que comporta N hosts
-  - Fórmula: `hosts_utilizáveis = 2^(32-prefixo) - 2`
-- **Estratégia**: Ordena por tamanho decrescente para otimizar espaço
-- **Resultado**: Mantém ordem original da entrada
-
-#### Modalidades VLSM:
-
-**🔄 Separado**
-
-- Avança para próximo limite `/24` após cada alocação
-- Evita conflitos entre sub-redes
-- Pode deixar espaços não utilizados
-
-**⚡ Sequencial**
-
-- Empacotamento contíguo sem desperdício
-- Alinhamento natural de cada sub-rede
-- Maximiza aproveitamento do espaço
-
-### 📊 Exemplo Comparativo
-
-Para entrada `[500, 100, 100]` hosts, veja como cada modo aloca:
-
-#### 🏗️ Modo Fixo
-
-```
-Rede 1: 500 hosts → 172.16.0.0/16  (faixa 172.16.x.x)
-Rede 2: 100 hosts → 192.168.0.0/24  (faixa 192.168.0.x)
-Rede 3: 100 hosts → 192.168.1.0/24  (faixa 192.168.1.x)
-```
-
-> Usa faixas diferentes: /16 para >254 hosts, /24 para ≤254 hosts
-
-#### 🧩 VLSM Separado
-
-```
-Rede 1: 500 hosts → 192.168.0.0/23   (192.168.0.0 - 192.168.1.255)
-Rede 2: 100 hosts → 192.168.2.0/25   (192.168.2.0 - 192.168.2.127)
-Rede 3: 100 hosts → 192.168.3.0/25   (192.168.3.0 - 192.168.3.127)
-```
-
-> Tudo na base 192.168.x.x, mas pula para próximo /24 entre alocações
-
-#### ⚡ VLSM Sequencial
-
-```
-Rede 1: 500 hosts → 192.168.0.0/23     (192.168.0.0 - 192.168.1.255)
-Rede 2: 100 hosts → 192.168.2.0/25     (192.168.2.0 - 192.168.2.127)
-Rede 3: 100 hosts → 192.168.2.128/25   (192.168.2.128 - 192.168.2.255)
-```
-
-> Empacota sem desperdício: redes 2 e 3 compartilham o mesmo /24
-
-## 📄 Licença
-
-Licença MIT
+MIT. O texto está em `LICENSE`.
