@@ -20,7 +20,8 @@ defmodule Weaver.MixProject do
     [
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
-      {:jason, "~> 1.4"}
+      {:jason, "~> 1.4"},
+      {:table_rex, "~> 4.1"}
     ]
   end
 end
