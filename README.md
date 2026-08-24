@@ -110,4 +110,4 @@ Em `sequential`, o cursor vira `net + block_size`. O próximo bloco começa no e
 
 ## Licença
 
-MIT. O texto está em `LICENSE`.
+MIT
