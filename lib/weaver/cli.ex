@@ -76,7 +76,7 @@ defmodule Weaver.CLI do
     machines =
       1..n
       |> Enum.map(fn i ->
-        IO.puts("Quantas máquinas na rede #{i}?")
+        IO.puts("Quantas máquinas na rede #{i}/#{n}?")
         read_int!()
       end)
 
@@ -164,69 +164,19 @@ defmodule Weaver.CLI do
   end
 
   defp print_table(title, rows) do
-    IO.puts("")
-    IO.puts("== #{title} ==")
+    header = ["Máquinas", "Endereço de Rede", "Prefixo", "Máscara de Sub-rede"]
 
-    machines_strs = Enum.map(rows, &Integer.to_string(&1.machines))
-    addr_strs = Enum.map(rows, & &1.addr)
-    prefix_strs = Enum.map(rows, &"/#{&1.prefix}")
-    mask_strs = Enum.map(rows, & &1.mask)
-
-    width1 =
-      max(String.length("Máquinas"), Enum.max([0 | Enum.map(machines_strs, &String.length/1)])) +
-        2
-
-    width2 =
-      max(
-        String.length("Endereço de Rede"),
-        Enum.max([0 | Enum.map(addr_strs, &String.length/1)])
-      ) + 2
-
-    width3 =
-      max(String.length("Prefixo"), Enum.max([0 | Enum.map(prefix_strs, &String.length/1)])) + 2
-
-    width4 =
-      max(
-        String.length("Máscara de Sub-rede"),
-        Enum.max([0 | Enum.map(mask_strs, &String.length/1)])
-      ) + 2
-
-    widths = [width1, width2, width3, width4]
-    header_cells = ["Máquinas", "Endereço de Rede", "Prefixo", "Máscara de Sub-rede"]
-
-    top_border = border_line(widths, {"┌", "┬", "┐"})
-    mid_border = border_line(widths, {"├", "┼", "┤"})
-    bottom_border = border_line(widths, {"└", "┴", "┘"})
-
-    IO.puts(top_border)
-    IO.puts(row_line(header_cells, widths))
-    IO.puts(mid_border)
-
-    Enum.each(rows, fn r ->
-      row = [Integer.to_string(r.machines), r.addr, "/#{r.prefix}", r.mask]
-      IO.puts(row_line(row, widths))
-    end)
-
-    IO.puts(bottom_border)
-  end
-
-  defp border_line(widths, {left, mid, right}) do
-    inner = Enum.map_join(widths, mid, &String.duplicate("─", &1))
-    "#{left}#{inner}#{right}"
-  end
-
-  defp row_line(values, widths) do
-    cells =
-      Enum.map_join(Enum.zip(values, widths), "│", fn {value, width} ->
-        inner_width = max(width - 2, 0)
-        len = String.length(value)
-        padding = max(inner_width - len, 0)
-        left = div(padding, 2)
-        right = padding - left
-        " " <> String.duplicate(" ", left) <> value <> String.duplicate(" ", right) <> " "
+    body =
+      Enum.map(rows, fn r ->
+        [Integer.to_string(r.machines), r.addr, "/#{r.prefix}", r.mask]
       end)
 
-    "│#{cells}│"
+    table =
+      body
+      |> TableRex.Table.new(header, title)
+      |> TableRex.Table.put_column_meta(:all, align: :center)
+
+    IO.puts(TableRex.Table.render!(table))
   end
 
   defp print_json(data) do
